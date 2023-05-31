@@ -1,16 +1,23 @@
 pipeline {
     
 	agent any
-/*	
+	
 	tools {
-        maven "maven3"
+        maven "MAVEN3"
+        jdk "OracleJDK8"
     }
-*/	
+    
+	
     environment {        
         registry = "krushna97/vprofileapp"
         registryCredential = "dockerhub"
     }
 	stages{
+            stage('Fetch Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Krushna8/cicd-kube-docker.git'
+            }
+            }
         
         stage('BUILD'){
             steps {
@@ -73,7 +80,7 @@ pipeline {
         stage('Build App Image') {
             steps {
                 script {
-                    dockerImage = docker.build registry + "V$BUILD_NUMBER"
+                    dockerImage = docker.build registry + ":v$BUILD_NUMBER"
                 }                                
             }
         }
@@ -81,7 +88,7 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry('', registryCredential) {
-                        dockerImage.push("V$BUILD_NUMBER")
+                        dockerImage.push("v$BUILD_NUMBER")
                         dockerImage.push("latest")
                     }
                 }
@@ -89,13 +96,13 @@ pipeline {
         }
         stage('Remove Unused Docker Image') {
             steps {
-                sh "docker rmi $registry:V$BUILD_NUMBER"
+                sh "docker rmi $registry:v$BUILD_NUMBER"
             }
         }
         stage('Kubenates Deploy') {
             agent {label 'KOPS'}
             steps {
-                sh "helm upgrade --install --force vprofile-stack helm/vprofilecharts --set appimage=${registry:V$(BUILD_NUMBER)} --namespace prod"
+                sh "helm upgrade --install --force vprofile-stack /home/ubuntu/cicd-kube-docker/helm/vprofilecharts --set appimage=${registry}:v${BUILD_NUMBER} --namespace prod"
 
             }
         }
